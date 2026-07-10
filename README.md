@@ -10,7 +10,7 @@ pinrip use                          # show the sticky folder
 pinrip use off                      # back to folders named after the page
 pinrip <url> --out <folder>         # one-off destination for this rip
 pinrip <url> --limit 80             # different cap
-pinrip <url> --allow-dupes          # re-download images already in the library
+pinrip <url> --allow-dupes          # re-download images already in the folder
 pinrip <url> --headed               # watch the browser work
 pinrip --login                      # one-time: log in so feeds load fully
 ```
@@ -18,8 +18,9 @@ pinrip --login                      # one-time: log in so feeds load fully
 Images land in `~/Downloads/pinterest-rip/<folder>/`, named by pin hash —
 where `<folder>` is `--out`, else the sticky folder, else a slug of the page
 title. Plain names live under `pinterest-rip/`; anything with a `/` is used
-as a path. A manifest at `~/Downloads/pinterest-rip/.seen` remembers every
-image ever ripped, so overlapping related-feeds don't produce duplicates.
+as a path. Images already in the destination folder are skipped, so ripping
+into the same folder twice only adds what's new — while the same image can
+still appear in different folders (each folder is its own set).
 
 ## How it works
 

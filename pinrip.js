@@ -9,7 +9,7 @@
  *   pinrip use                        show the sticky folder, if any
  *   pinrip use off                    back to naming folders after the page
  *   pinrip <url> --limit 80           different cap
- *   pinrip <url> --allow-dupes        re-download images already in the library
+ *   pinrip <url> --allow-dupes        re-download images already in the folder
  *   pinrip <url> --headed             watch the browser work
  *   pinrip --login                    open a window to log in to Pinterest
  *                                     (session persists for future runs)
@@ -17,8 +17,9 @@
  * Output: ~/Downloads/pinterest-rip/<folder>/<hash>.<ext> where <folder> is
  * --out, else the sticky folder, else a slug of the page title. Folder names
  * containing "/" are treated as paths instead of names under pinterest-rip.
- * A library manifest (~/Downloads/pinterest-rip/.seen) skips images
- * already downloaded by earlier rips, so overlapping feeds don't repeat.
+ * Images already present in the destination folder are skipped, so ripping
+ * into the same folder twice only adds what's new; the same image can still
+ * land in different folders.
  */
 
 const { chromium } = require('playwright');
@@ -28,7 +29,6 @@ const os = require('os');
 
 const RIP_ROOT = path.join(os.homedir(), 'Downloads', 'pinterest-rip');
 const PROFILE_DIR = path.join(os.homedir(), '.pinrip', 'profile');
-const SEEN_FILE = path.join(RIP_ROOT, '.seen');
 const SESSION_FILE = path.join(os.homedir(), '.pinrip', 'session');
 const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36';
@@ -59,16 +59,16 @@ function slugify(s) {
   );
 }
 
-function loadSeen() {
+function hashOf(name) {
+  return path.basename(name).replace(/\.[a-z0-9]+$/i, '');
+}
+
+function hashesInFolder(dir) {
   try {
-    return new Set(fs.readFileSync(SEEN_FILE, 'utf8').split('\n').filter(Boolean));
+    return new Set(fs.readdirSync(dir).map(hashOf));
   } catch {
     return new Set();
   }
-}
-
-function appendSeen(hashes) {
-  if (hashes.length) fs.appendFileSync(SEEN_FILE, hashes.join('\n') + '\n');
 }
 
 // Collect pinimg URLs currently in the DOM (largest srcset entry, no avatars).
@@ -148,7 +148,7 @@ function candidatesFor(url) {
 }
 
 async function downloadOne(url, destDir) {
-  const hash = path.basename(url).replace(/\.[a-z0-9]+$/i, '');
+  const hash = hashOf(url);
   for (const c of candidatesFor(url)) {
     try {
       const res = await fetch(`https://i.pinimg.com/${c}`, {
@@ -241,23 +241,22 @@ async function main() {
     process.exit(1);
   }
 
-  const seen = args.allowDupes ? new Set() : loadSeen();
-  const fresh = urls.filter((u) => !seen.has(path.basename(u).replace(/\.[a-z0-9]+$/i, '')));
-  const skipped = urls.length - fresh.length;
-
   const sticky = currentSession();
   const folder = args.out || sticky;
   const destDir = folder ? resolveDest(folder) : path.join(RIP_ROOT, slugify(title.replace(/\s*\|\s*Pinterest.*$/i, '')));
   if (folder && !args.out) console.log(`(sticky folder: ${folder})`);
   fs.mkdirSync(destDir, { recursive: true });
 
+  const seen = args.allowDupes ? new Set() : hashesInFolder(destDir);
+  const fresh = urls.filter((u) => !seen.has(hashOf(u)));
+  const skipped = urls.length - fresh.length;
+
   console.log(
-    `Collected ${urls.length} images${skipped ? ` (${skipped} already in library)` : ''} — downloading ${fresh.length} ...`
+    `Collected ${urls.length} images${skipped ? ` (${skipped} already in folder)` : ''} — downloading ${fresh.length} ...`
   );
   const results = await downloadAll(fresh, destDir);
   const ok = results.filter((r) => r.ok);
   const fullRes = ok.filter((r) => r.original).length;
-  appendSeen(ok.map((r) => r.hash));
 
   console.log(`Done: ${ok.length}/${fresh.length} saved (${fullRes} full-res) → ${destDir}`);
   const failed = results.filter((r) => !r.ok);
