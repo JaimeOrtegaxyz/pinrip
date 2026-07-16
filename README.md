@@ -1,7 +1,13 @@
-<img src="pinrip-logo.svg" alt="pinrip" width="280">
+<p align="center">
+  <img src="pinrip-logo.svg" alt="pinrip" height="130">
+</p>
+
+<br>
 
 Download the images of a Pinterest page (pin, board, search, profile) as
 full-resolution originals. No LLM, no browser extension — one command.
+
+<img src="assets/pinrip-preview.webp" alt="A folder of full-res images ripped from a Pinterest board">
 
 ```
 pinrip <pinterest-url>              # rip up to 50 images
@@ -21,6 +27,8 @@ title. Plain names live under `pinterest-rip/`; anything with a `/` is used
 as a path. Images already in the destination folder are skipped, so ripping
 into the same folder twice only adds what's new — while the same image can
 still appear in different folders (each folder is its own set).
+
+<img src="assets/pinrip-explainer.gif" alt="pinrip running in a terminal">
 
 ## How it works
 
