@@ -4,8 +4,10 @@
 
 <br>
 
-Download the images of a Pinterest page (pin, board, search, profile) as
-full-resolution originals. No LLM, no browser extension — one command.
+I hate downloading Pinterest images by hand. So I built pinrip.
+
+Use a nice CLI command to download images from a page (pin, board, search,
+profile) as full-resolution originals.
 
 <img src="assets/pinrip-preview.webp" alt="A folder of full-res images ripped from a Pinterest board">
 
