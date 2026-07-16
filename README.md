@@ -55,3 +55,7 @@ npm link        # puts `pinrip` on your PATH
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<br>
+
+<img src="assets/pinrip-lattice.svg" alt="" width="100%">
