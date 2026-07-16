@@ -1,4 +1,4 @@
-# pinrip
+<img src="pinrip-logo.svg" alt="pinrip" width="280">
 
 Download the images of a Pinterest page (pin, board, search, profile) as
 full-resolution originals. No LLM, no browser extension — one command.
@@ -36,4 +36,14 @@ persists in `~/.pinrip/profile` and rips then reach the full cap.
 
 ## Install
 
-`npm install` in this folder; `pinrip` is symlinked from `~/.local/bin`.
+```
+git clone https://github.com/JaimeOrtegaxyz/pinrip.git
+cd pinrip
+npm install
+npx playwright install chromium
+npm link        # puts `pinrip` on your PATH
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

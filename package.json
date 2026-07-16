@@ -1,14 +1,24 @@
 {
   "name": "pinrip",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Download the images of a Pinterest page (pin, board, search, profile) as full-resolution originals.",
+  "bin": {
+    "pinrip": "./pinrip.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "pinterest",
+    "downloader",
+    "images",
+    "scraper",
+    "cli",
+    "playwright"
+  ],
+  "author": "Jaime Ortega",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JaimeOrtegaxyz/pinrip.git"
+  },
   "type": "commonjs",
   "dependencies": {
     "playwright": "^1.61.1"
