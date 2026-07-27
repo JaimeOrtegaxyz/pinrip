@@ -20,7 +20,10 @@ pinrip <url> --out <folder>         # one-off destination for this rip
 pinrip <url> --limit 80             # different cap
 pinrip <url> --allow-dupes          # re-download images already in the folder
 pinrip <url> --headed               # watch the browser work
-pinrip --login                      # one-time: log in so feeds load fully
+
+pinrip login                        # rip as yourself (see below)
+pinrip status                       # which account pinrip rips as
+pinrip logout                       # forget the session
 ```
 
 Images land in `~/Downloads/pinterest-rip/<folder>/`, named by pin hash —
@@ -32,6 +35,48 @@ still appear in different folders (each folder is its own set).
 
 <img src="assets/pinrip-explainer.gif" alt="pinrip running in a terminal">
 
+## Log in, or you get a different page than you see
+
+Pinterest serves logged-out visitors a public, generic feed. It is genuinely
+**different content** from what you see while browsing, not just a shorter
+version of it, and it stops feeding related pins after ~25–30 images. If a rip
+comes back with images you don't recognise, this is why.
+
+Every rip prints which one you're getting:
+
+```
+Logged in as @you — ripping your feed.
+```
+
+`pinrip login` borrows the Pinterest session straight from the browser you
+already use, so the scraper sees exactly the feed you do:
+
+```
+pinrip login                                 # auto-detect the browser
+pinrip login --list                          # what it can borrow from
+pinrip login --browser brave --profile "Profile 1"
+```
+
+It reads Chrome, Brave, Edge, Arc, Vivaldi, Opera and Chromium, on macOS and
+Linux. Cookies are decrypted with the key your OS holds — on macOS that raises
+one Keychain prompt for the browser's "Safe Storage" entry — and only
+`pinterest.com` cookies are copied, into `~/.pinrip/cookies.json` (mode 600).
+Nothing is sent anywhere; the file is read locally and handed to the scraper.
+`pinrip logout` deletes it along with the scraper's browser profile.
+
+If you browse Pinterest somewhere pinrip can't read (Safari, Firefox, Windows),
+log in by hand in a pinrip window instead:
+
+```
+pinrip login --window
+```
+
+Heads up: **"Continue with Google" usually fails in that window** — Google
+refuses OAuth in automation-controlled browsers. Use your Pinterest email and
+password, or borrow the session from a supported browser. Either way pinrip
+verifies the result against Pinterest before reporting success, so a login
+that didn't take says so instead of silently ripping as a stranger.
+
 ## How it works
 
 Headless Chromium (Playwright) opens the page, auto-scrolls collecting
@@ -40,9 +85,8 @@ while scrolling), stops at the cap or when the feed stalls, then downloads
 each image — upgrading sized thumbnails (`236x/`, `736x/`, …) to
 `/originals/` with extension fallbacks.
 
-Logged out, Pinterest stops feeding related pins after ~25–30 images.
-Run `pinrip --login` once (a window opens; log in; close it) — the session
-persists in `~/.pinrip/profile` and rips then reach the full cap.
+The saved session is re-applied at the start of every rip and written back
+afterwards, so Pinterest's cookie rotation doesn't quietly expire it.
 
 ## Install
 
@@ -53,6 +97,9 @@ npm install
 npx playwright install chromium
 npm link        # puts `pinrip` on your PATH
 ```
+
+`pinrip login` also uses the `sqlite3` CLI to read the browser's cookie
+database — it ships with macOS and most Linux distros.
 
 ## License
 
