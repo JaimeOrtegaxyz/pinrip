@@ -24,6 +24,10 @@
  * images from the ones you see while browsing, and it stops feeding related
  * pins after ~25–30. Every rip prints which of the two you're getting.
  *
+ * Only the page's own pins are ripped. Promoted pins (ads), "Ideas you might
+ * like" chips, board "More ideas" tiles and avatars are skipped; each rip
+ * prints how many it passed over.
+ *
  * Output: ~/Downloads/pinterest-rip/<folder>/<hash>.<ext> where <folder> is
  * --out, else the sticky folder, else a slug of the page title. Folder names
  * containing "/" are treated as paths instead of names under pinterest-rip.
@@ -149,8 +153,30 @@ async function refreshSession(context) {
 /* ----------------------------------------------------------------- scrape */
 
 // Collect pinimg URLs currently in the DOM (largest srcset entry, no avatars).
+//
+// Pinterest pads every page with images that aren't the page's own pins:
+// promoted pins (ads), the "Ideas you might like" topic chips, a board's
+// "More ideas" tiles, header avatars. Visually they're indistinguishable from
+// the real grid, but each one gives itself away by where it points — an ad
+// links off Pinterest, a suggestion tile links to a search or a _tools page —
+// so classify by the link, not by the picture.
 function collectInPage() {
+  const isPadding = (img) => {
+    // Promoted pins render in a "one tap promoted pin" wrapper.
+    if (img.closest('[data-test-id="otpp"], [data-test-id="one-tap-desktop"]')) return true;
+    if (img.closest('[data-test-id="header"], [role="banner"], [data-test-id="gestalt-avatar-svg"]')) return true;
+    const a = img.closest('a[href]');
+    const href = (a && a.getAttribute('href')) || '';
+    // Absolute link off Pinterest = an ad's landing page. Real pins link to /pin/.
+    if (/^https?:\/\//i.test(href) && !/^https?:\/\/([a-z0-9-]+\.)*pinterest\.[a-z.]+(\/|$)/i.test(href)) return true;
+    if (/^\/search\//.test(href)) return true; // "Ideas you might like" chip
+    if (/\/_tools\//.test(href)) return true; // board "More ideas" tile
+    if (/\/_profile\/?$/.test(href)) return true; // profile avatar
+    return false;
+  };
+
   const found = [];
+  const padding = [];
   for (const img of document.querySelectorAll('img')) {
     let u = img.currentSrc || img.src;
     if (img.srcset) {
@@ -163,7 +189,8 @@ function collectInPage() {
     }
     if (!u || !u.includes('i.pinimg.com')) continue;
     if (/\/(30x30|60x60|75x75|75x75_RS|140x140)\//.test(u)) continue;
-    found.push(u);
+    if (isPadding(img)) padding.push(u);
+    else found.push(u);
   }
   // Best effort: keep signup/login walls from blocking the scroll.
   for (const sel of [
@@ -176,7 +203,7 @@ function collectInPage() {
   document.documentElement.style.overflow = 'auto';
   document.body.style.overflow = 'auto';
   window.scrollBy(0, window.innerHeight * 1.5);
-  return { urls: found, y: window.scrollY, title: document.title };
+  return { urls: found, padding, y: window.scrollY, title: document.title };
 }
 
 async function launchContext({ headless }) {
@@ -207,6 +234,7 @@ async function scrape(url, { limit, headed }) {
       );
 
     const urls = new Set();
+    const padding = new Set(); // ads and suggestion tiles scrolled past
     let title = '';
     let lastY = -1;
     let stall = 0;
@@ -218,13 +246,14 @@ async function scrape(url, { limit, headed }) {
         if (urls.size >= limit) break;
         urls.add(u);
       }
+      for (const u of r.padding) padding.add(u);
       title = r.title || title;
       stall = r.y === lastY ? stall + 1 : 0;
       lastY = r.y;
       await page.waitForTimeout(700);
     }
     if (auth.loggedIn) await refreshSession(context);
-    return { urls: [...urls], title };
+    return { urls: [...urls], padding: padding.size, title };
   } finally {
     await context.close();
   }
@@ -474,7 +503,7 @@ async function main() {
 
   fs.mkdirSync(RIP_ROOT, { recursive: true });
   console.log(`Scraping ${args.url} (cap ${args.limit}) ...`);
-  const { urls, title } = await scrape(args.url, args);
+  const { urls, padding, title } = await scrape(args.url, args);
   if (!urls.length) {
     console.error('No images found — Pinterest may be walling the page. Try: pinrip login');
     process.exit(1);
@@ -490,8 +519,12 @@ async function main() {
   const fresh = urls.filter((u) => !seen.has(hashOf(u)));
   const skipped = urls.length - fresh.length;
 
+  const notes = [
+    padding ? `${padding === 1 ? '1 ad/suggestion' : `${padding} ads/suggestions`} skipped` : '',
+    skipped ? `${skipped} already in folder` : '',
+  ].filter(Boolean);
   console.log(
-    `Collected ${urls.length} images${skipped ? ` (${skipped} already in folder)` : ''} — downloading ${fresh.length} ...`
+    `Collected ${urls.length} images${notes.length ? ` (${notes.join(', ')})` : ''} — downloading ${fresh.length} ...`
   );
   const results = await downloadAll(fresh, destDir);
   const ok = results.filter((r) => r.ok);

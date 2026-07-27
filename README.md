@@ -28,28 +28,20 @@ pinrip logout                       # forget the session
 
 Images land in `~/Downloads/pinterest-rip/<folder>/`, named by pin hash —
 where `<folder>` is `--out`, else the sticky folder, else a slug of the page
-title. Plain names live under `pinterest-rip/`; anything with a `/` is used
-as a path. Images already in the destination folder are skipped, so ripping
-into the same folder twice only adds what's new — while the same image can
-still appear in different folders (each folder is its own set).
+title. Plain names live under `pinterest-rip/`; anything with a `/` is used as
+a path. Images already in the destination folder are skipped, so ripping into
+the same folder twice only adds what's new.
 
 <img src="assets/pinrip-explainer.gif" alt="pinrip running in a terminal">
 
-## Log in, or you get a different page than you see
+## Rip as yourself
 
-Pinterest serves logged-out visitors a public, generic feed. It is genuinely
-**different content** from what you see while browsing, not just a shorter
-version of it, and it stops feeding related pins after ~25–30 images. If a rip
-comes back with images you don't recognise, this is why.
+Logged out, Pinterest serves a generic public feed — different images from the
+ones you see while browsing, and it stops after ~25–30. Every rip prints which
+of the two you're getting.
 
-Every rip prints which one you're getting:
-
-```
-Logged in as @you — ripping your feed.
-```
-
-`pinrip login` borrows the Pinterest session straight from the browser you
-already use, so the scraper sees exactly the feed you do:
+`pinrip login` borrows the Pinterest session from the browser you already use,
+so the scraper sees the feed you do:
 
 ```
 pinrip login                                 # auto-detect the browser
@@ -58,32 +50,26 @@ pinrip login --browser brave --profile "Profile 1"
 ```
 
 It reads Chrome, Brave, Edge, Arc, Vivaldi, Opera and Chromium, on macOS and
-Linux. Cookies are decrypted with the key your OS holds — on macOS that raises
-one Keychain prompt for the browser's "Safe Storage" entry — and only
-`pinterest.com` cookies are copied, into `~/.pinrip/cookies.json` (mode 600).
-Nothing is sent anywhere; the file is read locally and handed to the scraper.
-`pinrip logout` deletes it along with the scraper's browser profile.
+Linux. Only `pinterest.com` cookies are copied, into `~/.pinrip/cookies.json`
+(mode 600) — on macOS that raises one Keychain prompt for the browser's "Safe
+Storage" key. Nothing is sent anywhere, and `pinrip logout` deletes it.
 
 If you browse Pinterest somewhere pinrip can't read (Safari, Firefox, Windows),
-log in by hand in a pinrip window instead:
-
-```
-pinrip login --window
-```
-
-Heads up: **"Continue with Google" usually fails in that window** — Google
-refuses OAuth in automation-controlled browsers. Use your Pinterest email and
-password, or borrow the session from a supported browser. Either way pinrip
-verifies the result against Pinterest before reporting success, so a login
-that didn't take says so instead of silently ripping as a stranger.
+`pinrip login --window` lets you log in by hand instead. Use your email and
+password there — Google refuses OAuth in an automated browser. Either way the
+session is checked against Pinterest before pinrip reports success.
 
 ## How it works
 
-Headless Chromium (Playwright) opens the page, auto-scrolls collecting
-`i.pinimg.com` image URLs (Pinterest virtualizes the DOM, so this must happen
-while scrolling), stops at the cap or when the feed stalls, then downloads
-each image — upgrading sized thumbnails (`236x/`, `736x/`, …) to
-`/originals/` with extension fallbacks.
+Headless Chromium (Playwright) opens the page and auto-scrolls, collecting
+`i.pinimg.com` URLs as it goes — Pinterest virtualizes the DOM, so they have to
+be read while scrolling. Each thumbnail (`236x/`, `736x/`, …) is then upgraded
+to `/originals/`, with extension fallbacks.
+
+Only the page's own pins are collected. Promoted pins and suggestion tiles look
+like part of the grid but give themselves away by where they point — an ad links
+off Pinterest, a suggestion links to a search — so pinrip sorts by the link
+rather than the picture, and prints how many it skipped.
 
 The saved session is re-applied at the start of every rip and written back
 afterwards, so Pinterest's cookie rotation doesn't quietly expire it.
