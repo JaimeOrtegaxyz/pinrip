@@ -4,6 +4,9 @@
  *
  * Usage:
  *   pinrip <pinterest-url>            rip up to 50 images
+ *   pinrip <search terms>             rip a search — no URL needed
+ *   pinrip "logo a, logo b"           several searches, one rip (commas split;
+ *                                     --limit caps each search)
  *   pinrip <url> --out <folder>       land this rip in a specific folder
  *   pinrip use <folder>               sticky: land ALL rips there until "use off"
  *   pinrip use                        show the sticky folder, if any
@@ -29,7 +32,8 @@
  * prints how many it passed over.
  *
  * Output: ~/Downloads/pinterest-rip/<folder>/<hash>.<ext> where <folder> is
- * --out, else the sticky folder, else a slug of the page title. Folder names
+ * --out, else the sticky folder, else a slug of the page title or the search
+ * terms. Folder names
  * containing "/" are treated as paths instead of names under pinterest-rip.
  * Images already present in the destination folder are skipped, so ripping
  * into the same folder twice only adds what's new; the same image can still
@@ -50,14 +54,14 @@ const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36';
 
 function parseArgs(argv) {
-  const args = { limit: 50, url: null, headed: false, allowDupes: false, out: null };
+  const args = { limit: 50, targets: [], headed: false, allowDupes: false, out: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--headed') args.headed = true;
     else if (a === '--allow-dupes') args.allowDupes = true;
     else if (a === '--limit') args.limit = parseInt(argv[++i], 10) || 50;
     else if (a === '--out') args.out = argv[++i];
-    else if (!a.startsWith('-')) args.url = a;
+    else if (!a.startsWith('-')) args.targets.push(a);
   }
   return args;
 }
@@ -217,43 +221,57 @@ async function launchContext({ headless }) {
   });
 }
 
-async function scrape(url, { limit, headed }) {
+async function scrape(targets, { limit, headed }) {
   const context = await launchContext({ headless: !headed });
   try {
     await applySession(context);
     const page = context.pages()[0] || (await context.newPage());
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForTimeout(2500);
-
-    const auth = await authState(page);
-    if (auth.loggedIn) console.log(`Logged in${auth.user ? ` as ${auth.user}` : ''} — ripping your feed.`);
-    else
-      console.log(
-        'Not logged in — Pinterest is serving the public feed, which differs from what\n' +
-          '  you see in your browser and dries up after ~25–30 related pins. Fix: pinrip login'
-      );
-
-    const urls = new Set();
+    const byHash = new Map(); // pin hash → url, across every target in the run
     const padding = new Set(); // ads and suggestion tiles scrolled past
     let title = '';
-    let lastY = -1;
-    let stall = 0;
-    const deadline = Date.now() + 120000;
+    let loggedIn = false;
 
-    while (urls.size < limit && stall < 8 && Date.now() < deadline) {
-      const r = await page.evaluate(collectInPage);
-      for (const u of r.urls) {
-        if (urls.size >= limit) break;
-        urls.add(u);
+    for (const [i, target] of targets.entries()) {
+      console.log(`${target.label} (cap ${limit}) ...`);
+      await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForTimeout(2500);
+
+      if (i === 0) {
+        const auth = await authState(page);
+        loggedIn = auth.loggedIn;
+        if (auth.loggedIn) console.log(`Logged in${auth.user ? ` as ${auth.user}` : ''} — ripping your feed.`);
+        else
+          console.log(
+            'Not logged in — Pinterest is serving the public feed, which differs from what\n' +
+              '  you see in your browser and dries up after ~25–30 related pins. Fix: pinrip login'
+          );
       }
-      for (const u of r.padding) padding.add(u);
-      title = r.title || title;
-      stall = r.y === lastY ? stall + 1 : 0;
-      lastY = r.y;
-      await page.waitForTimeout(700);
+
+      // The cap counts what THIS target adds, so searches that overlap an
+      // earlier one still contribute their full share of new images.
+      let fresh = 0;
+      let lastY = -1;
+      let stall = 0;
+      const deadline = Date.now() + 120000;
+
+      while (fresh < limit && stall < 8 && Date.now() < deadline) {
+        const r = await page.evaluate(collectInPage);
+        for (const u of r.urls) {
+          if (fresh >= limit) break;
+          const h = hashOf(u);
+          if (byHash.has(h)) continue;
+          byHash.set(h, u);
+          fresh++;
+        }
+        for (const u of r.padding) padding.add(u);
+        title = r.title || title;
+        stall = r.y === lastY ? stall + 1 : 0;
+        lastY = r.y;
+        await page.waitForTimeout(700);
+      }
     }
-    if (auth.loggedIn) await refreshSession(context);
-    return { urls: [...urls], padding: padding.size, title };
+    if (loggedIn) await refreshSession(context);
+    return { urls: [...byHash.values()], padding: padding.size, title };
   } finally {
     await context.close();
   }
@@ -479,7 +497,8 @@ function handleUse(name) {
 }
 
 function usage(code) {
-  console.log('Usage: pinrip <pinterest-url> [--out folder] [--limit 50] [--allow-dupes] [--headed]');
+  console.log('Usage: pinrip <pinterest-url | search terms> [--out folder] [--limit 50] [--allow-dupes] [--headed]');
+  console.log('       search terms rip pinterest.com/search — commas run several searches, --limit caps each');
   console.log('       pinrip use [<folder>|off]   sticky folder for all rips');
   console.log('       pinrip login [--list|--window|--browser <b> --profile <p>]');
   console.log('       pinrip status | logout');
@@ -487,6 +506,12 @@ function usage(code) {
 }
 
 /* ------------------------------------------------------------------- main */
+
+const isPinterestUrl = (s) => /pinterest\.[a-z.]+\//i.test(s);
+
+function searchUrl(q) {
+  return `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(q)}`;
+}
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -499,11 +524,22 @@ async function main() {
   if (argv.includes('--login')) return handleLogin(argv.filter((a) => a !== '--login')); // pre-1.1 spelling
 
   const args = parseArgs(argv);
-  if (!args.url || !/pinterest\.[a-z.]+\//i.test(args.url)) usage(args.url ? 1 : 0);
+  const urlTargets = args.targets.filter(isPinterestUrl);
+  // Everything that isn't a URL is search text; commas split it into searches.
+  const queries = args.targets
+    .filter((t) => !isPinterestUrl(t))
+    .join(' ')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const targets = [
+    ...urlTargets.map((u) => ({ url: u, label: `Scraping ${u}` })),
+    ...queries.map((q) => ({ url: searchUrl(q), label: `Searching "${q}"` })),
+  ];
+  if (!targets.length) usage(0);
 
   fs.mkdirSync(RIP_ROOT, { recursive: true });
-  console.log(`Scraping ${args.url} (cap ${args.limit}) ...`);
-  const { urls, padding, title } = await scrape(args.url, args);
+  const { urls, padding, title } = await scrape(targets, args);
   if (!urls.length) {
     console.error('No images found — Pinterest may be walling the page. Try: pinrip login');
     process.exit(1);
@@ -511,7 +547,12 @@ async function main() {
 
   const sticky = stickyFolder();
   const folder = args.out || sticky;
-  const destDir = folder ? resolveDest(folder) : path.join(RIP_ROOT, slugify(title.replace(/\s*\|\s*Pinterest.*$/i, '')));
+  const destDir = folder
+    ? resolveDest(folder)
+    : path.join(
+        RIP_ROOT,
+        queries.length ? slugify(queries.join(' ')) : slugify(title.replace(/\s*\|\s*Pinterest.*$/i, ''))
+      );
   if (folder && !args.out) console.log(`(sticky folder: ${folder})`);
   fs.mkdirSync(destDir, { recursive: true });
 

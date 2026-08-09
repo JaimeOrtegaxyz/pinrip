@@ -7,12 +7,14 @@
 I hate downloading Pinterest images by hand. So I built pinrip.
 
 Use a nice CLI command to download images from a page (pin, board, search,
-profile) as full-resolution originals.
+profile) — or straight from search terms — as full-resolution originals.
 
 <img src="assets/pinrip-preview.webp" alt="A folder of full-res images ripped from a Pinterest board">
 
 ```
 pinrip <pinterest-url>              # rip up to 50 images
+pinrip "art deco monogram"          # rip a search — no URL needed
+pinrip "logo a, logo b" --limit 10  # several searches, one rip; 10 fresh each
 pinrip use <folder>                 # sticky: all rips land there until "use off"
 pinrip use                          # show the sticky folder
 pinrip use off                      # back to folders named after the page
@@ -28,7 +30,7 @@ pinrip logout                       # forget the session
 
 Images land in `~/Downloads/pinterest-rip/<folder>/`, named by pin hash —
 where `<folder>` is `--out`, else the sticky folder, else a slug of the page
-title. Plain names live under `pinterest-rip/`; anything with a `/` is used as
+title or the search terms. Plain names live under `pinterest-rip/`; anything with a `/` is used as
 a path. Images already in the destination folder are skipped, so ripping into
 the same folder twice only adds what's new.
 

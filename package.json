@@ -1,7 +1,7 @@
 {
   "name": "pinrip",
-  "version": "1.0.0",
-  "description": "Download the images of a Pinterest page (pin, board, search, profile) as full-resolution originals.",
+  "version": "1.2.0",
+  "description": "Download the images of a Pinterest page (pin, board, search, profile) or a search typed straight into the CLI, as full-resolution originals.",
   "bin": {
     "pinrip": "./pinrip.js"
   },
