@@ -500,6 +500,34 @@ function handleUse(name) {
   }
 }
 
+/* --------------------------------------------------------------- the mark */
+
+// pinrip-logo.svg, rasterized to half-blocks and tidied by hand. 40 cols, 7 rows.
+const LOGO = [
+  '         ▄▄                  ▄▄',
+  '▄▄▄▄▄▄   ▀▀   ▄▄▄▄▄          ▀▀  ▄▄▄▄▄',
+  '███▀▀██▄ ██▄ ███████▄        ██ ███▀▀██▄',
+  '▀██  ███ ███ ███  ███ █████ ▄██ ███  ███',
+  ' ██████▀  ██ ███  ███ ███   ███ ██████▀',
+  ' ███                  ███   ▀▀  ███',
+  ' ▀▀▀                   ██       ▀▀',
+];
+
+// Drawn for a bare `pinrip` only — on every other command it would just crowd.
+function drawLogo() {
+  if (!process.stdout.isTTY) return; // piped or redirected: no escape codes
+  if ((process.stdout.columns || 80) < 44) return; // 40 cols of mark, plus air
+  const red = process.env.NO_COLOR
+    ? ''
+    : /truecolor|24bit/i.test(process.env.COLORTERM || '')
+      ? '\x1b[38;2;197;10;10m' // #C50A0A, the brand red
+      : '\x1b[38;5;160m'; // closest the 256-colour cube gets
+  const off = red ? '\x1b[0m' : '';
+  console.log();
+  for (const line of LOGO) console.log(red + line + off);
+  console.log();
+}
+
 function usage(code) {
   console.log('Usage: pinrip <pinterest-url | search terms> [--out folder] [--limit 50] [--allow-dupes] [--headed]');
   console.log('       search terms rip pinterest.com/search — commas run several searches, --limit caps each');
@@ -521,6 +549,11 @@ function searchUrl(q) {
 async function main() {
   const argv = process.argv.slice(2);
   const cmd = argv[0];
+
+  if (!argv.length) {
+    drawLogo();
+    usage(0);
+  }
 
   if (cmd === 'use') return handleUse(argv[1]);
   if (cmd === 'logout') return handleLogout();
