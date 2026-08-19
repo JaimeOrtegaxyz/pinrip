@@ -76,6 +76,8 @@ part too. From inside a project:
 /pinrip                      # it reads the project and asks what to scout
 ```
 
+<img src="assets/pinrip-in-claude.gif" alt="/pinrip running inside Claude Code: it reads the project, briefs a few directions and rips them">
+
 The agent reads the project (README, assets, tokens, the conversation), writes
 a short brief the way an art director would — two to four *directions*, each a
 territory with a reason it fits and a handful of precise searches, at least
