@@ -26,6 +26,8 @@ pinrip <url> --headed               # watch the browser work
 pinrip login                        # rip as yourself (see below)
 pinrip status                       # which account pinrip rips as
 pinrip logout                       # forget the session
+
+pinrip skill                        # the /pinrip moodboard skill for Claude Code / Codex (see below)
 ```
 
 Images land in `~/Downloads/pinterest-rip/<folder>/`, named by pin hash —
@@ -61,6 +63,44 @@ If you browse Pinterest somewhere pinrip can't read (Safari, Firefox, Windows),
 password there — Google refuses OAuth in an automated browser. Either way the
 session is checked against Pinterest before pinrip reports success.
 
+## Moodboard scout: `/pinrip` in Claude Code
+
+The part I actually did by hand was never the downloading — it was deciding
+*what* to look for. So pinrip ships a skill for agent harnesses that does that
+part too. From inside a project:
+
+```
+/pinrip logo                 # ~200 logo references that fit this project
+/pinrip posters 80           # 80 poster references
+/pinrip packaging, warmer    # steer it
+/pinrip                      # it reads the project and asks what to scout
+```
+
+The agent reads the project (README, assets, tokens, the conversation), writes
+a short brief the way an art director would — two to four *directions*, each a
+territory with a reason it fits and a handful of precise searches, at least
+one of them lateral — then runs those searches through pinrip and files the
+images by direction:
+
+```
+~/Downloads/pinterest-rip/<project>/logo/
+  BRIEF.md                    the read, the directions, the queries, the counts
+  01-postwar-swiss-trademarks/
+  02-pin-hook-magpie/
+  03-tool-marks-hallmarks/
+```
+
+The target is "at least about 200" unless you say otherwise; it tops up if
+Pinterest comes back thin. Ask for more of one direction, or a different one,
+and it adds to the same folder.
+
+The skill is one file, [`skill/SKILL.md`](skill/SKILL.md). `npm install` (and
+`npm link`) copy it into `~/.claude/skills/pinrip/` and `~/.codex/skills/pinrip/`
+— only for harnesses already on the machine; if you have neither, nothing
+happens. `pinrip skill` shows where it landed, `pinrip skill install --to <dir>`
+puts it somewhere else, `pinrip skill uninstall` removes it,
+`PINRIP_SKIP_SKILL=1 npm install` skips it.
+
 ## How it works
 
 Headless Chromium (Playwright) opens the page and auto-scrolls, collecting
@@ -87,7 +127,8 @@ npm link        # puts `pinrip` on your PATH
 ```
 
 `pinrip login` also uses the `sqlite3` CLI to read the browser's cookie
-database — it ships with macOS and most Linux distros.
+database — it ships with macOS and most Linux distros. If Claude Code or Codex
+is on the machine, `npm install` also drops in the `/pinrip` skill (above).
 
 ## License
 

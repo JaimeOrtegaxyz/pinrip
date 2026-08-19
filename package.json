@@ -1,9 +1,12 @@
 {
   "name": "pinrip",
-  "version": "1.2.0",
-  "description": "Download the images of a Pinterest page (pin, board, search, profile) or a search typed straight into the CLI, as full-resolution originals.",
+  "version": "1.3.0",
+  "description": "Download the images of a Pinterest page (pin, board, search, profile) or a search typed straight into the CLI, as full-resolution originals. Ships the /pinrip moodboard-scout skill for Claude Code and Codex.",
   "bin": {
     "pinrip": "./pinrip.js"
+  },
+  "scripts": {
+    "postinstall": "node skill/install.js --postinstall"
   },
   "keywords": [
     "pinterest",
@@ -11,7 +14,10 @@
     "images",
     "scraper",
     "cli",
-    "playwright"
+    "playwright",
+    "moodboard",
+    "claude-code",
+    "agent-skill"
   ],
   "author": "Jaime Ortega",
   "license": "MIT",

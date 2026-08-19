@@ -23,6 +23,10 @@
  *   pinrip status                     check which account pinrip rips as
  *   pinrip logout                     forget the saved session
  *
+ *   pinrip skill                      is the /pinrip moodboard skill installed?
+ *   pinrip skill install              install it for Claude Code / Codex (also
+ *   pinrip skill uninstall            runs on npm install); see skill/SKILL.md
+ *
  * Logged out, Pinterest serves a public, truncated feed — genuinely different
  * images from the ones you see while browsing, and it stops feeding related
  * pins after ~25–30. Every rip prints which of the two you're getting.
@@ -502,6 +506,7 @@ function usage(code) {
   console.log('       pinrip use [<folder>|off]   sticky folder for all rips');
   console.log('       pinrip login [--list|--window|--browser <b> --profile <p>]');
   console.log('       pinrip status | logout');
+  console.log('       pinrip skill [install|uninstall|status]   the /pinrip moodboard skill for agent harnesses');
   process.exit(code);
 }
 
@@ -521,6 +526,7 @@ async function main() {
   if (cmd === 'logout') return handleLogout();
   if (cmd === 'status') return handleStatus();
   if (cmd === 'login') return handleLogin(argv.slice(1));
+  if (cmd === 'skill') return require('./skill/install').handleSkill(argv.slice(1));
   if (argv.includes('--login')) return handleLogin(argv.filter((a) => a !== '--login')); // pre-1.1 spelling
 
   const args = parseArgs(argv);
